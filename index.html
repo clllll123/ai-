@@ -1,0 +1,162 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI 股市操盘手</title>
+    <!-- Tailwind CSS (CDN is fine for styling) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- PeerJS (Global script required as logic uses window.Peer) -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        --color-bg-deep: #050b14;
+        --color-panel: rgba(20, 30, 48, 0.6);
+        --color-up: #00ffa3; /* Neon Green */
+        --color-down: #ff4d6d; /* Neon Red */
+        --color-accent: #3b82f6;
+      }
+
+      body {
+        font-family: 'Inter', system-ui, sans-serif;
+        background-color: var(--color-bg-deep);
+        color: #e2e8f0;
+      }
+
+      /* Financial Data Font */
+      .font-mono {
+        font-family: 'JetBrains Mono', monospace;
+        letter-spacing: -0.5px;
+      }
+
+      /* Cyber Grid Background */
+      .bg-grid-pattern {
+        background-image: 
+          linear-gradient(rgba(59, 130, 246, 0.05) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(59, 130, 246, 0.05) 1px, transparent 1px);
+        background-size: 40px 40px;
+        background-position: center top;
+      }
+      
+      .bg-radial-glow {
+        background: radial-gradient(circle at center, rgba(30, 58, 138, 0.2) 0%, transparent 70%);
+      }
+
+      /* Glassmorphism Panel */
+      .glass-panel {
+        background: rgba(17, 24, 39, 0.7);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+      }
+
+      /* Neon Text Colors */
+      .text-up { color: var(--color-up); text-shadow: 0 0 10px rgba(0, 255, 163, 0.3); }
+      .text-down { color: var(--color-down); text-shadow: 0 0 10px rgba(255, 77, 109, 0.3); }
+      
+      .bg-up { background-color: var(--color-up); }
+      .bg-down { background-color: var(--color-down); }
+
+      /* Animations */
+      @keyframes pulse-border-green {
+        0% { border-color: rgba(0, 255, 163, 0.1); box-shadow: 0 0 0 rgba(0, 255, 163, 0); }
+        50% { border-color: rgba(0, 255, 163, 0.8); box-shadow: 0 0 15px rgba(0, 255, 163, 0.3); }
+        100% { border-color: rgba(0, 255, 163, 0.1); box-shadow: 0 0 0 rgba(0, 255, 163, 0); }
+      }
+      @keyframes pulse-border-red {
+        0% { border-color: rgba(255, 77, 109, 0.1); box-shadow: 0 0 0 rgba(255, 77, 109, 0); }
+        50% { border-color: rgba(255, 77, 109, 0.8); box-shadow: 0 0 15px rgba(255, 77, 109, 0.3); }
+        100% { border-color: rgba(255, 77, 109, 0.1); box-shadow: 0 0 0 rgba(255, 77, 109, 0); }
+      }
+      @keyframes flash-green-bg {
+        0% { background-color: rgba(0, 255, 163, 0); }
+        10% { background-color: rgba(0, 255, 163, 0.2); }
+        100% { background-color: rgba(0, 255, 163, 0); }
+      }
+      @keyframes flash-red-bg {
+        0% { background-color: rgba(255, 77, 109, 0); }
+        10% { background-color: rgba(255, 77, 109, 0.2); }
+        100% { background-color: rgba(255, 77, 109, 0); }
+      }
+      
+      @keyframes marquee {
+        0% { transform: translateX(100%); }
+        100% { transform: translateX(-100%); }
+      }
+
+      .flash-up { animation: flash-green-bg 0.6s ease-out; }
+      .flash-down { animation: flash-red-bg 0.6s ease-out; }
+      
+      /* Slowed down from 30s to 60s */
+      .animate-marquee {
+        animation: marquee 60s linear infinite;
+        white-space: nowrap;
+        display: inline-block;
+      }
+      
+      /* Slowed down from 20s to 45s */
+      .animate-marquee-fast {
+        animation: marquee 45s linear infinite;
+        white-space: nowrap;
+        display: inline-block;
+      }
+
+      .animate-fade-in { animation: fadeIn 0.5s ease-out forwards; }
+      @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+      /* DANMU & EMOJI ANIMATIONS */
+      @keyframes danmu-move {
+        0% { transform: translateX(100vw); }
+        100% { transform: translateX(-100%); }
+      }
+      .animate-danmu {
+        position: fixed;
+        white-space: nowrap;
+        will-change: transform;
+        animation-name: danmu-move;
+        animation-timing-function: linear;
+      }
+      
+      @keyframes emoji-float {
+        0% { transform: translateY(100vh) scale(0.5); opacity: 0; }
+        10% { opacity: 1; transform: translateY(80vh) scale(1.2); }
+        50% { transform: translateY(40vh) scale(1); }
+        100% { transform: translateY(-20vh) scale(0.8); opacity: 0; }
+      }
+      .animate-emoji {
+        position: fixed;
+        will-change: transform, opacity;
+        animation: emoji-float 4s ease-out forwards;
+      }
+
+      /* Scrollbar */
+      ::-webkit-scrollbar { width: 6px; height: 6px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 3px; }
+      ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.3); }
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.2.1",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
+    "react/": "https://aistudiocdn.com/react@^19.2.1/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.32.0",
+    "recharts": "https://aistudiocdn.com/recharts@^3.5.1",
+    "vite": "https://aistudiocdn.com/vite@^7.2.7",
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.2"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body class="bg-gray-900 text-white overflow-hidden bg-grid-pattern">
+    <div id="root" class="w-full h-full bg-radial-glow"></div>
+    <script type="module" src="./index.tsx"></script>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>
